@@ -112,7 +112,7 @@ func (a *parallelAnalyzer) analyzeTestRun(pass *analysis.Pass, n ast.Node, testV
 				}
 			} else if builderCall, ok := callExpr.Args[1].(*ast.CallExpr); ok {
 				// Case 3: Function call that returns a function: t.Run("name", builder())
-				analysis.hasParallel = a.checkBuilderFunctionForParallel(pass, builderCall, innerTestVar)
+				analysis.hasParallel = a.checkBuilderFunctionForParallel(pass, builderCall)
 			}
 		}
 
@@ -236,7 +236,7 @@ func (a *parallelAnalyzer) analyzeTestFunction(pass *analysis.Pass, funcDecl *as
 
 // checkBuilderFunctionForParallel analyzes a function call that returns a test function
 // to see if the returned function contains t.Parallel()
-func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, builderCall *ast.CallExpr, innerTestVar string) bool {
+func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, builderCall *ast.CallExpr) bool {
 	// Get the name of the builder function being called
 	var builderFuncName string
 	switch fun := builderCall.Fun.(type) {
@@ -261,7 +261,7 @@ func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, 
 				continue
 			}
 
-			// Analyze the return statements in the builder function
+			// Found the builder function, analyze it and return immediately
 			hasParallel := false
 			ast.Inspect(funcDecl, func(n ast.Node) bool {
 				if hasParallel {
@@ -295,15 +295,19 @@ func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, 
 								}
 								return true
 							})
+
+							// Exit immediately if we found t.Parallel()
+							if hasParallel {
+								return false
+							}
 						}
 					}
 				}
-				return true
+				return !hasParallel // Stop inspection if we found t.Parallel()
 			})
 
-			if hasParallel {
-				return true
-			}
+			// Return immediately after processing the matching function
+			return hasParallel
 		}
 	}
 
