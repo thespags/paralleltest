@@ -264,10 +264,6 @@ func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, 
 			// Found the builder function, analyze it and return immediately
 			hasParallel := false
 			ast.Inspect(funcDecl, func(n ast.Node) bool {
-				if hasParallel {
-					return false
-				}
-
 				// Look for return statements
 				returnStmt, ok := n.(*ast.ReturnStmt)
 				if !ok || len(returnStmt.Results) == 0 {
@@ -296,14 +292,15 @@ func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, 
 								return true
 							})
 
-							// Exit immediately if we found t.Parallel()
+							// Exit inspection immediately if we found t.Parallel()
 							if hasParallel {
 								return false
 							}
 						}
 					}
 				}
-				return !hasParallel // Stop inspection if we found t.Parallel()
+				// Continue to next return statement if t.Parallel() not found yet
+				return true
 			})
 
 			// Return immediately after processing the matching function
