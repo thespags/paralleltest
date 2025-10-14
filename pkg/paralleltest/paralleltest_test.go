@@ -29,3 +29,12 @@ func TestIgnoreMissingSubtestsOption(t *testing.T) {
 
 	analysistest.Run(t, analysistest.TestData(), a.analyzer, "ignoremissingsubtests")
 }
+
+func TestCheckCleanupOption(t *testing.T) {
+	t.Parallel()
+
+	a := newParallelAnalyzer()
+	a.checkCleanup = true
+
+	analysistest.Run(t, analysistest.TestData(), a.analyzer, "cleanup")
+}

@@ -21,6 +21,7 @@ A few options can be activated by flag:
 * `-i`: Ignore missing calls to `t.Parallel` and only report incorrect uses of it.
 * `-ignoremissingsubtests`: Require that top-level tests specify `t.Parallel`, but don't require it in subtests (`t.Run(...)`).
 * `-ignoreloopVar`: Ignore loop variable detection.
+* `-checkcleanup`: Check that `defer` is not used with `t.Parallel` (use `t.Cleanup` instead to ensure cleanup runs after parallel subtests complete).
 
 ## Development
 
@@ -202,6 +203,48 @@ func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 // Error displayed
 // Range statement for test TestFunctionRangeNotReInitialisingVariable does not reinitialise the variable tc
 ```
+
+### Using `defer` with `t.Parallel()` (requires `-checkcleanup` flag)
+
+When `t.Parallel()` is called, the test function returns immediately, causing `defer` statements to execute before subtests complete. This can lead to cleanup happening too early, causing test failures or resource leaks.
+
+```go
+// bad - defer runs before subtests complete
+func TestWithDeferAndParallel(t *testing.T) {
+  t.Parallel()
+
+  tempFile := "test.tmp"
+  f, _ := os.Create(tempFile)
+  defer f.Close()         // runs immediately when function returns
+  defer os.Remove(tempFile)  // file deleted before subtests finish!
+
+  t.Run("subtest1", func(t *testing.T) {
+    t.Parallel()
+    fmt.Fprintf(f, "data")  // may fail - file already closed!
+  })
+}
+
+// good - t.Cleanup runs after all subtests complete
+func TestWithCleanupAndParallel(t *testing.T) {
+  t.Parallel()
+
+  tempFile := "test.tmp"
+  f, _ := os.Create(tempFile)
+  t.Cleanup(func() {
+    f.Close()
+    os.Remove(tempFile)
+  })
+
+  t.Run("subtest1", func(t *testing.T) {
+    t.Parallel()
+    fmt.Fprintf(f, "data")  // works correctly
+  })
+}
+// Error displayed (with -checkcleanup flag)
+// Function TestWithDeferAndParallel uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete
+```
+
+**Note:** This check is disabled by default. Enable it with the `-checkcleanup` flag.
 
 ## Contributing
 
