@@ -317,7 +317,7 @@ func TestRangeHelperWithDifferentParamNames(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			t.Run("sub1", rangeHelperWithCustomParam) // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
+			t.Run("sub1", rangeHelperWithCustomParam)  // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
 			t.Run("sub2", rangeHelperWithAnotherParam) // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
 		})
 	}
@@ -329,4 +329,30 @@ func rangeHelperWithCustomParam(testT *testing.T) {
 
 func rangeHelperWithAnotherParam(t *testing.T) {
 	fmt.Println("range another")
+}
+
+// Test cases with builder functions that return test functions
+func TestBuilderFunctionReturningTestFunc(t *testing.T) {
+	t.Parallel()
+	t.Run("1", builderWithParallel())
+	t.Run("2", builderWithParallel())
+}
+
+func builderWithParallel() func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Parallel()
+		fmt.Println("test from builder")
+	}
+}
+
+func TestBuilderFunctionMissingParallel(t *testing.T) {
+	t.Parallel()
+	t.Run("1", builderWithoutParallel()) // want "Function TestBuilderFunctionMissingParallel missing the call to method parallel in the test run"
+	t.Run("2", builderWithoutParallel()) // want "Function TestBuilderFunctionMissingParallel missing the call to method parallel in the test run"
+}
+
+func builderWithoutParallel() func(t *testing.T) {
+	return func(t *testing.T) {
+		fmt.Println("test from builder without parallel")
+	}
 }
