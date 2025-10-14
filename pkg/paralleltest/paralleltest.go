@@ -225,7 +225,7 @@ func (a *parallelAnalyzer) analyzeTestFunction(pass *analysis.Pass, funcDecl *as
 
 	if a.checkCleanup && analysis.funcHasParallelMethod && analysis.funcHasDeferStatement {
 		for _, deferStmt := range analysis.deferStatements {
-			pass.Reportf(deferStmt.Pos(), "Function %s uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete\n", funcDecl.Name.Name)
+			pass.Reportf(deferStmt.Pos(), "Function %s uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete", funcDecl.Name.Name)
 		}
 	}
 }
