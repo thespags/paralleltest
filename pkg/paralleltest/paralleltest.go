@@ -292,14 +292,15 @@ func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, 
 								return true
 							})
 
-							// Exit immediately if we found t.Parallel()
+							// Exit inspection immediately if we found t.Parallel()
 							if hasParallel {
 								return false
 							}
 						}
 					}
 				}
-				return true // Continue inspection
+				// Continue to next return statement if t.Parallel() not found yet
+				return true
 			})
 
 			// Return immediately after processing the matching function
