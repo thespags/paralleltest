@@ -13,7 +13,8 @@ import (
 const Doc = `check that tests use t.Parallel() method
 It also checks that the t.Parallel is used if multiple tests cases are run as part of single test.
 As part of ensuring parallel tests works as expected it checks for reinitializing of the range value
-over the test cases.(https://tinyurl.com/y6555cy6)`
+over the test cases.(https://tinyurl.com/y6555cy6)
+With the -checkcleanup flag, it also checks that defer is not used with t.Parallel (use t.Cleanup instead).`
 
 func NewAnalyzer() *analysis.Analyzer {
 	return newParallelAnalyzer().analyzer
@@ -27,6 +28,7 @@ type parallelAnalyzer struct {
 	ignoreMissing         bool
 	ignoreMissingSubtests bool
 	ignoreLoopVar         bool
+	checkCleanup          bool
 }
 
 func newParallelAnalyzer() *parallelAnalyzer {
@@ -36,6 +38,7 @@ func newParallelAnalyzer() *parallelAnalyzer {
 	flags.BoolVar(&a.ignoreMissing, "i", false, "ignore missing calls to t.Parallel")
 	flags.BoolVar(&a.ignoreMissingSubtests, "ignoremissingsubtests", false, "ignore missing calls to t.Parallel in subtests")
 	flags.BoolVar(&a.ignoreLoopVar, "ignoreloopVar", false, "ignore loop variable detection")
+	flags.BoolVar(&a.checkCleanup, "checkcleanup", false, "check that defer is not used with t.Parallel (use t.Cleanup instead)")
 
 	a.analyzer = &analysis.Analyzer{
 		Name:  "paralleltest",
@@ -51,11 +54,13 @@ type testFunctionAnalysis struct {
 	funcCantParallelMethod,
 	rangeStatementOverTestCasesExists,
 	rangeStatementHasParallelMethod,
-	rangeStatementCantParallelMethod bool
+	rangeStatementCantParallelMethod,
+	funcHasDeferStatement bool
 	loopVariableUsedInRun *string
 	numberOfTestRun       int
 	positionOfTestRunNode []ast.Node
 	rangeNode             ast.Node
+	deferStatements       []ast.Node
 }
 
 type testRunAnalysis struct {
@@ -126,6 +131,12 @@ func (a *parallelAnalyzer) analyzeTestFunction(pass *analysis.Pass, funcDecl *as
 
 	for _, l := range funcDecl.Body.List {
 		switch v := l.(type) {
+		case *ast.DeferStmt:
+			if a.checkCleanup {
+				analysis.funcHasDeferStatement = true
+				analysis.deferStatements = append(analysis.deferStatements, v)
+			}
+
 		case *ast.ExprStmt:
 			ast.Inspect(v, func(n ast.Node) bool {
 				if !analysis.funcHasParallelMethod {
@@ -209,6 +220,12 @@ func (a *parallelAnalyzer) analyzeTestFunction(pass *analysis.Pass, funcDecl *as
 			for _, n := range analysis.positionOfTestRunNode {
 				pass.Reportf(n.Pos(), "Function %s missing the call to method parallel in the test run\n", funcDecl.Name.Name)
 			}
+		}
+	}
+
+	if a.checkCleanup && analysis.funcHasParallelMethod && analysis.funcHasDeferStatement {
+		for _, deferStmt := range analysis.deferStatements {
+			pass.Reportf(deferStmt.Pos(), "Function %s uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete", funcDecl.Name.Name)
 		}
 	}
 }
