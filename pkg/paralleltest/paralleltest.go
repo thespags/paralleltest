@@ -1,6 +1,7 @@
 package paralleltest
 
 import (
+	"flag"
 	"go/ast"
 	"strings"
 	"sync"
@@ -30,10 +31,19 @@ func NewAnalyzer(config Config) *analysis.Analyzer {
 		mu:      &sync.RWMutex{},
 		visited: make(map[string]*testAnalysis),
 	}
+
+	var ignoreLoopVar bool
+	var flags flag.FlagSet
+	flags.BoolVar(&config.IgnoreMissing, "i", false, "ignore missing calls to t.Parallel")
+	flags.BoolVar(&config.IgnoreMissingSubtests, "ignoremissingsubtests", false, "ignore missing calls to t.Parallel in subtests")
+	flags.BoolVar(&ignoreLoopVar, "ignoreloopVar", false, "ignore loop variable detection <deprecated with go 1.22>")
+	flags.BoolVar(&config.CheckCleanup, "checkcleanup", false, "check that defer is not used with t.Parallel (use t.Cleanup instead)")
+
 	return &analysis.Analyzer{
-		Name: "paralleltest",
-		Doc:  Doc,
-		Run:  a.run,
+		Name:  "paralleltest",
+		Doc:   Doc,
+		Run:   a.run,
+		Flags: flags,
 	}
 }
 
